@@ -9,7 +9,7 @@ Whether you're attacking a domain in Hack The Box, TryHackMe, or conducting a re
 ## 🛠️ Installation
 
 ### Prerequisites
-
+In the case of installing krb5, if it asks you to enter a REALM, leave it empty and accept
 ```bash
 sudo apt install ntpdate figlet lolcat krb5-config krb5-user -y
 ```
