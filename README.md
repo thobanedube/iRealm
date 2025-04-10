@@ -27,7 +27,7 @@ iRealm
 You will be prompted to enter:
 
   - Domain Controller IP
-  - Domain name (e.g., vintage.htb)
+  - Domain name (e.g., gzzcoo.htb)
   - Hostname (e.g., dc01)
 
 ### Silent mode (no prompts)
