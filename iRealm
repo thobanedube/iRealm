@@ -1,0 +1,96 @@
+#!/bin/bash
+
+# Author: Gzzcoo
+
+# Colours
+green="\e[0;32m\033[1m"
+end="\033[0m\e[0m"
+red="\e[0;31m\033[1m"
+blue="\e[0;34m\033[1m"
+yellow="\e[0;33m\033[1m"
+purple="\e[0;35m\033[1m"
+turquoise="\e[0;36m\033[1m"
+gray="\e[0;37m\033[1m"
+
+figlet -f slant "iRealm" | lolcat
+
+# Check for --force mode
+force=false
+if [[ "$1" == "--force" ]]; then
+    if [[ -z "$2" || -z "$3" || -z "$4" ]]; then
+        echo -e "\n${red}[✘] Missing arguments in --force mode.${end}"
+        echo -e "\n${yellow}Usage:${end} $0 --force <IP> <DOMAIN> <HOSTNAME>"
+        exit 1
+    fi
+    force=true
+    ip="$2"
+    domain="$3"
+    hostname="$4"
+else
+    # Inputs
+    echo -ne "\n${yellow}[!]${end} ${purple}IP address:${end} "
+    read ip
+
+    echo -ne "${yellow}[!]${end} ${purple}Domain name (${turquoise}e.g. dominio.htb${end}${purple}):${end} "
+    read domain
+
+    echo -ne "${yellow}[!]${end} ${purple}Hostname (${turquoise}e.g. dc${end}${purple}):${end} "
+    read hostname
+fi
+
+fqdn="$hostname.$domain"
+realm_upper=$(echo "$domain" | awk '{print toupper($0)}')
+line_to_add="$ip $fqdn $domain"
+
+# /etc/hosts
+if grep -Fxq "$line_to_add" /etc/hosts; then
+    echo -e "\n⚠️ ${purple}Entry already exists in${end} ${turquoise}/etc/hosts${end}${purple}. Skipping...${end}"
+else
+    if ! $force; then
+        echo -e "\n💡 ${purple}Entry to add to${end} ${turquoise}/etc/hosts${end}${purple}:${end}"
+        echo -e "$line_to_add"
+        echo -ne "\n✅ ${purple}Do you want to add this to ${end}${turquoise}/etc/hosts${end}${purple}? (${turquoise}y/n${end}${purple}):${end} "
+        read confirm
+        if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
+            echo -e "\n❌ ${red}Cancelled. Exiting.${end}"
+            exit 1
+        fi
+    fi
+    echo "$line_to_add" | sudo tee -a /etc/hosts > /dev/null
+    echo -e "\n✅ ${purple}Added to${end} ${turquoise}/etc/hosts${end}${purple}!${end}"
+fi
+
+# Time sync
+echo -e "\n⏰ ${purple}Syncing time with DC...${end}"
+sudo timedatectl set-ntp 0
+sudo ntpdate -s "$ip"
+
+# Backup krb5.conf
+if [[ -f /etc/krb5.conf ]]; then
+    sudo cp /etc/krb5.conf /etc/krb5.conf.bak 2>/dev/null
+    echo -e "\n🗂️ ${purple}Backup saved as${end} ${turquoise}/etc/krb5.conf.bak${end}"
+fi
+
+# krb5.conf replace
+echo -e "\n🧹 ${purple}Replacing ${end}${turquoise}/etc/krb5.conf${end}${purple}...${end}"
+sudo tee /etc/krb5.conf > /dev/null <<EOF
+[libdefaults]
+    default_realm = ${realm_upper}
+    ticket_lifetime = 24h
+    renew_lifetime = 7d
+    forwardable = true
+    rdns = false
+
+[realms]
+    ${realm_upper} = {
+        kdc = ${fqdn}
+        admin_server = ${fqdn}
+        default_domain = ${domain}
+    }
+
+[domain_realm]
+    .${domain,,} = ${realm_upper}
+    ${domain,,} = ${realm_upper}
+EOF
+
+echo -e "\n🎉 ${green}Done! Hosts and Kerberos config updated.${end}\n"
