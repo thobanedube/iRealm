@@ -83,8 +83,9 @@ sudo tee /etc/krb5.conf > /dev/null <<EOF
 
 [realms]
     ${realm_upper} = {
-        kdc = ${ip}
-        admin_server = ${ip}
+        kdc = $(hostname).$(domain)
+        admin_server = $(hostname).$(domain}
+        default_domain = $(domain)
     }
 
 [domain_realm]
